@@ -1,5 +1,50 @@
 {
   "dependencies": {
+    "com.browar.editor-toolbox": {
+      "version": "https://github.com/arimger/Unity-Editor-Toolbox.git#upm",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.editorcoroutines": "1.0.0"
+      },
+      "hash": "c0e23661b9e3e48d935e2011637688eead7aa46f"
+    },
+    "com.sosxr.editorspice": {
+      "version": "https://github.com/solo-fsw/sosxr-unity-editortools.git#dev",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.xr.interaction.toolkit": "3.0.7",
+        "com.unity.recorder": "5.1.2"
+      },
+      "hash": "081b2b5c4455d19a9297ce267780815c409232b3"
+    },
+    "com.sosxr.enhancedlogger": {
+      "version": "https://github.com/mrstruijk/EnhancedLogger.git#dev",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "c63ae206478093522b6d9e685bef8379ef113428"
+    },
+    "com.sosxr.seashark": {
+      "version": "https://github.com/solo-fsw/sosxr-unity-seashark.git#dev",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.inputsystem": "1.12.0",
+        "com.unity.textmeshpro": "3.0.1"
+      },
+      "hash": "7570bb86d948169ff27d0ed0a992dbeac9cc72e1"
+    },
+    "com.unity.bindings.openimageio": {
+      "version": "1.0.0",
+      "depth": 2,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.collections": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.burst": {
       "version": "1.8.23",
       "depth": 2,
@@ -121,6 +166,17 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
+    "com.unity.recorder": {
+      "version": "5.1.2",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.timeline": "1.8.7",
+        "com.unity.collections": "1.2.4",
+        "com.unity.bindings.openimageio": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.render-pipelines.core": {
       "version": "17.1.0",
       "depth": 1,
@@ -217,6 +273,14 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.textmeshpro": {
+      "version": "5.0.0",
+      "depth": 1,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.ugui": "2.0.0"
+      }
+    },
     "com.unity.timeline": {
       "version": "1.8.7",
       "depth": 0,
@@ -310,6 +374,22 @@
         "com.unity.xr.legacyinputhelpers": "2.1.2"
       },
       "url": "https://packages.unity.com"
+    },
+    "com.yasirkula.androidruntimepermissions": {
+      "version": "https://github.com/yasirkula/UnityAndroidRuntimePermissions.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "45e43c81309d5f21860681b10c55129dd4cddab2"
+    },
+    "com.yasirkula.ingamedebugconsole": {
+      "version": "https://github.com/solo-fsw/sosxr-unity-ingamedebugconsole.git#dev",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.modules.androidjni": "1.0.0"
+      },
+      "hash": "611cba4a95fd9701e2c2fbbcd715a2897a79101e"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",

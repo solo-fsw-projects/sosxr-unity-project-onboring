@@ -1,5 +1,11 @@
 {
   "dependencies": {
+    "com.browar.editor-toolbox": "https://github.com/arimger/Unity-Editor-Toolbox.git#upm",
+    "com.sosxr.editorspice": "https://github.com/solo-fsw/sosxr-unity-editortools.git#dev",
+    "com.sosxr.enhancedlogger": "https://github.com/mrstruijk/EnhancedLogger.git#dev",
+    "com.sosxr.seashark": "https://github.com/solo-fsw/sosxr-unity-seashark.git#dev",
+    "com.yasirkula.androidruntimepermissions": "https://github.com/yasirkula/UnityAndroidRuntimePermissions.git",
+    "com.yasirkula.ingamedebugconsole": "https://github.com/solo-fsw/sosxr-unity-ingamedebugconsole.git#dev",
     "com.unity.collab-proxy": "2.8.2",
     "com.unity.feature.development": "1.0.2",
     "com.unity.inputsystem": "1.14.0",
