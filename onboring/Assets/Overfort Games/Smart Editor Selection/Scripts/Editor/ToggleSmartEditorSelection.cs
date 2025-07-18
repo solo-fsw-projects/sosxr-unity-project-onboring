@@ -1,12 +1,14 @@
-﻿using UnityEngine;
-using UnityEditor;
-using UnityEditor.Toolbars;
-using UnityEngine.UIElements;
-using System.Linq;
+﻿using System;
 using System.Collections.Generic;
-using System;
+using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEditor.ShortcutManagement;
+using UnityEditor.Toolbars;
+using UnityEngine;
+using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
+
 
 namespace OverfortGames.SmartEditorSelection
 {
@@ -19,49 +21,36 @@ namespace OverfortGames.SmartEditorSelection
             Ctrl
         }
 
-        public const string id = "smart-selection";
 
-        // This property is specified by IAccessContainerWindow and is used to access the Overlay's EditorWindow.
-        public EditorWindow containerWindow { get; set; }
+        private readonly Texture2D logoDeactivated;
+        private readonly Texture2D logoActivated;
 
-        private static Renderer hoverRenderer;
-        private Texture2D logoDeactivated;
-        private Texture2D logoActivated;
+        private List<GameObject> currentSelectedObjects = new();
 
-        public static EditorPrefsVariable<Color> OutlineSelectionColor = new EditorPrefsVariable<Color>("key_outlineSelectionColor", new Color(1, 0.8352941f, 0, 1));
-        public static EditorPrefsVariable<float> OutlineSelectionColorFillAmount { get; set; } = new EditorPrefsVariable<float>("key_outlineSelectionColorFillAmount", .5f);
-        public static EditorPrefsVariable<float> OutlineMultiSelectionColorFillAmount { get; set; } = new EditorPrefsVariable<float>("key_outlineMultiSelectionColorFillAmount", .5f);
-        public static EditorPrefsVariable<Color> OutlineMultiSelectionColor = new EditorPrefsVariable<Color>("key_outlineMultiSelectionColor", new Color(1, 0.5843138f, 0, 1));
-        public static EditorPrefsVariable<bool> ForceDisableGizmos { get; set; } = new EditorPrefsVariable<bool>("key_forceDisableGizmos", true);
-        public static EditorPrefsVariable<bool> ShowSelectionLabel { get; set; } = new EditorPrefsVariable<bool>("key_showSelectionLabel", true);
-        public static EditorPrefsVariable<bool> ShowMultiSelectionLabel { get; set; } = new EditorPrefsVariable<bool>("key_showMultiSelectionLabel", true);
-        public static EditorPrefsVariable<bool> Active { get; set; } = new EditorPrefsVariable<bool>("key_active", false);
-        public static EditorPrefsVariable<MultiSelectionKeyType> MultiSelectionKey { get; set; } = new EditorPrefsVariable<MultiSelectionKeyType>("key_multiSelectionKey", MultiSelectionKeyType.Shift);
-        public static EditorPrefsVariable<bool> InvertMultiSelection { get; set; } = new EditorPrefsVariable<bool>("key_invertMultiSelection", false);
+        private readonly List<Renderer> renderOutlineObjects = new();
 
-        private static ToggleSmartEditorSelection _instance;
+        private readonly Dictionary<Camera, float> cameraFarPlaneDictionary = new();
 
-        private static bool keyToggleValue;
-
-        private List<GameObject> currentSelectedObjects = new List<GameObject>();
-
-        private List<Renderer> renderOutlineObjects = new List<Renderer>();
-
-        private Dictionary<Camera, float> cameraFarPlaneDictionary = new Dictionary<Camera, float>();
-
-        private Dictionary<GameObject, bool> terrainsPickableDictionary = new Dictionary<GameObject, bool>();
+        private readonly Dictionary<GameObject, bool> terrainsPickableDictionary = new();
 
         private bool lastDrawGizmos = false;
 
-        ToggleSmartEditorSelection()
+        private Tool previousTool = Tool.Move;
+        private GameObject[] filter;
+        private bool wantsToSelect;
+        private Event currentEvent;
+
+
+        private ToggleSmartEditorSelection()
         {
             _instance = this;
 
             {
-                string[] guids = AssetDatabase.FindAssets("smarteditorselection_icon t:Texture2D");
+                var guids = AssetDatabase.FindAssets("smarteditorselection_icon t:Texture2D");
+
                 if (guids.Length > 0)
                 {
-                    string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+                    var path = AssetDatabase.GUIDToAssetPath(guids[0]);
                     logoDeactivated = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
                 }
                 else
@@ -71,10 +60,11 @@ namespace OverfortGames.SmartEditorSelection
             }
 
             {
-                string[] guids = AssetDatabase.FindAssets("smarteditorselection_icon_activated t:Texture2D");
+                var guids = AssetDatabase.FindAssets("smarteditorselection_icon_activated t:Texture2D");
+
                 if (guids.Length > 0)
                 {
-                    string path = AssetDatabase.GUIDToAssetPath(guids[0]);
+                    var path = AssetDatabase.GUIDToAssetPath(guids[0]);
                     logoActivated = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
                 }
                 else
@@ -108,6 +98,31 @@ namespace OverfortGames.SmartEditorSelection
             Selection.selectionChanged += SelectionChanged;
         }
 
+
+        public static EditorPrefsVariable<float> OutlineSelectionColorFillAmount { get; set; } = new("key_outlineSelectionColorFillAmount", .5f);
+        public static EditorPrefsVariable<float> OutlineMultiSelectionColorFillAmount { get; set; } = new("key_outlineMultiSelectionColorFillAmount", .5f);
+        public static EditorPrefsVariable<bool> ForceDisableGizmos { get; set; } = new("key_forceDisableGizmos", true);
+        public static EditorPrefsVariable<bool> ShowSelectionLabel { get; set; } = new("key_showSelectionLabel", true);
+        public static EditorPrefsVariable<bool> ShowMultiSelectionLabel { get; set; } = new("key_showMultiSelectionLabel", true);
+        public static EditorPrefsVariable<bool> Active { get; set; } = new("key_active", false);
+        public static EditorPrefsVariable<MultiSelectionKeyType> MultiSelectionKey { get; set; } = new("key_multiSelectionKey", MultiSelectionKeyType.Shift);
+        public static EditorPrefsVariable<bool> InvertMultiSelection { get; set; } = new("key_invertMultiSelection", false);
+
+        public const string id = "smart-selection";
+
+        private static Renderer hoverRenderer;
+
+        public static EditorPrefsVariable<Color> OutlineSelectionColor = new("key_outlineSelectionColor", new Color(1, 0.8352941f, 0, 1));
+        public static EditorPrefsVariable<Color> OutlineMultiSelectionColor = new("key_outlineMultiSelectionColor", new Color(1, 0.5843138f, 0, 1));
+
+        private static ToggleSmartEditorSelection _instance;
+
+        private static bool keyToggleValue;
+
+        // This property is specified by IAccessContainerWindow and is used to access the Overlay's EditorWindow.
+        public EditorWindow containerWindow { get; set; }
+
+
         ~ToggleSmartEditorSelection()
         {
             EditorApplication.update -= Update;
@@ -117,22 +132,22 @@ namespace OverfortGames.SmartEditorSelection
             Selection.selectionChanged -= SelectionChanged;
         }
 
-        private Tool previousTool = Tool.Move;
-        private GameObject[] filter;
-        private bool wantsToSelect;
-        private Event currentEvent;
 
         private void Update()
         {
             if (Active.Value)
             {
                 if (icon != logoActivated)
+                {
                     icon = logoActivated;
+                }
             }
             else
             {
                 if (icon != logoDeactivated)
+                {
                     icon = logoDeactivated;
+                }
             }
 
             if (wantsToSelect)
@@ -140,16 +155,19 @@ namespace OverfortGames.SmartEditorSelection
                 Selection.objects = currentSelectedObjects.Select(x => x.gameObject).ToArray();
                 wantsToSelect = false;
             }
-
         }
+
 
         private void DropdownClicked()
         {
             if (!(containerWindow is SceneView view))
+            {
                 return;
+            }
 
             var w = PopupWindowBase.Show<SmartEditorSelectionSettingsWindow>(this, new Vector2(300, 205));
         }
+
 
         private void ToggleChanged(ChangeEvent<bool> evt)
         {
@@ -164,7 +182,6 @@ namespace OverfortGames.SmartEditorSelection
 
                 UpdateRenderOutlineObjects();
                 SyncCurrentSelectedObjectsWithSelectionObjects();
-
             }
             else
             {
@@ -178,18 +195,23 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private void EnableGizmos()
         {
             SceneView.lastActiveSceneView.drawGizmos = lastDrawGizmos;
         }
 
+
         private void DisableGizmos()
         {
             lastDrawGizmos = SceneView.lastActiveSceneView.drawGizmos;
-            if (ForceDisableGizmos.Value)
-                SceneView.lastActiveSceneView.drawGizmos = false;
 
+            if (ForceDisableGizmos.Value)
+            {
+                SceneView.lastActiveSceneView.drawGizmos = false;
+            }
         }
+
 
         [ClutchShortcut("OverfortGames Smart Selection/Toggle Smart Selection", typeof(SceneView), KeyCode.C)]
         public static void ToggleSmartSelectionShortcutClutch()
@@ -199,11 +221,13 @@ namespace OverfortGames.SmartEditorSelection
             _instance.value = keyToggleValue;
         }
 
+
         [Shortcut("OverfortGames Smart Selection/Toggle Smart Selection Perma Toggle", typeof(SceneView), KeyCode.G)]
         public static void ToggleSmartSelectionShortcut()
         {
             _instance.value = !_instance.value;
         }
+
 
         private void DrawSelectionBoundingBox(SceneView view)
         {
@@ -212,6 +236,7 @@ namespace OverfortGames.SmartEditorSelection
             if (!Active.Value)
             {
                 hoverRenderer = null;
+
                 return;
             }
 
@@ -223,25 +248,23 @@ namespace OverfortGames.SmartEditorSelection
             if (currentEvent.type == EventType.MouseMove)
             {
                 hoverRenderer = null;
-                GameObject[] ignore = null;// GameObject.FindObjectOfType<Canvas>().GetComponentsInChildren<RectTransform>().Select(x => x.gameObject).ToArray();
+                GameObject[] ignore = null; // GameObject.FindObjectOfType<Canvas>().GetComponentsInChildren<RectTransform>().Select(x => x.gameObject).ToArray();
 
                 var hoveredObject = HandleUtility.PickGameObject(currentEvent.mousePosition, false, ignore, filter);
+
                 if (hoveredObject != null)
                 {
                     hoverRenderer = hoveredObject.GetComponentInChildren<Renderer>();
 
                     if (hoverRenderer.GetComponent<LODGroup>())
                     {
-                        hoverRenderer = hoverRenderer.GetComponentsInChildren<Renderer>().
-                                   Where(x => x.isVisible).FirstOrDefault();
+                        hoverRenderer = hoverRenderer.GetComponentsInChildren<Renderer>().Where(x => x.isVisible).FirstOrDefault();
                     }
-                    else
-                        if (hoverRenderer.transform.parent != null)
+                    else if (hoverRenderer.transform.parent != null)
                     {
                         if (hoverRenderer.transform.parent.GetComponent<LODGroup>() != null)
                         {
-                            hoverRenderer = hoverRenderer.transform.parent.GetComponentsInChildren<Renderer>().
-                                Where(x => x.isVisible).FirstOrDefault();
+                            hoverRenderer = hoverRenderer.transform.parent.GetComponentsInChildren<Renderer>().Where(x => x.isVisible).FirstOrDefault();
                         }
                     }
                 }
@@ -253,7 +276,7 @@ namespace OverfortGames.SmartEditorSelection
             {
                 if (GUIUtility.hotControl == 0)
                 {
-                    HandlesInternal.DrawOutline(new Renderer[] { hoverRenderer }, OutlineSelectionColor.Value, OutlineSelectionColor.Value, OutlineSelectionColorFillAmount.Value);
+                    HandlesInternal.DrawOutline(new[] {hoverRenderer}, OutlineSelectionColor.Value, OutlineSelectionColor.Value, OutlineSelectionColorFillAmount.Value);
                 }
 
                 if (currentEvent.type == EventType.MouseDown && currentEvent.button == 0) // Left mouse button down
@@ -271,24 +294,30 @@ namespace OverfortGames.SmartEditorSelection
                         }
                     }
 
-                    bool doMultiSelection = false;
+                    var doMultiSelection = false;
 
                     switch (MultiSelectionKey.Value)
                     {
                         case MultiSelectionKeyType.Shift:
                             if (currentEvent.shift)
+                            {
                                 doMultiSelection = true;
+                            }
+
                             break;
                         case MultiSelectionKeyType.Ctrl:
                             if (currentEvent.command || currentEvent.control)
+                            {
                                 doMultiSelection = true;
-                            break;
-                        default:
+                            }
+
                             break;
                     }
 
                     if (InvertMultiSelection.Value)
+                    {
                         doMultiSelection = !doMultiSelection;
+                    }
 
                     if (doMultiSelection)
                     {
@@ -316,13 +345,14 @@ namespace OverfortGames.SmartEditorSelection
             HandlesInternal.DrawOutline(renderOutlineObjects.ToArray(), OutlineMultiSelectionColor.Value, OutlineMultiSelectionColor.Value, OutlineMultiSelectionColorFillAmount.Value);
         }
 
+
         private void DrawLabels()
         {
-            Rect hoverSelectedLabelRect = new Rect(50, 10, 0, 0);
+            var hoverSelectedLabelRect = new Rect(50, 10, 0, 0);
 
-            var labelStyle = new GUIStyle()
+            var labelStyle = new GUIStyle
             {
-                normal = new GUIStyleState() { textColor = Color.white, background = MakeTex(2, 2, new Color(0, 0, 0, 0.5f)) },
+                normal = new GUIStyleState {textColor = Color.white, background = MakeTex(2, 2, new Color(0, 0, 0, 0.5f))},
                 fontSize = 12,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter
@@ -332,14 +362,14 @@ namespace OverfortGames.SmartEditorSelection
             {
                 Handles.BeginGUI();
 
-                for (int i = 0; i < currentSelectedObjects.Count; i++)
+                for (var i = 0; i < currentSelectedObjects.Count; i++)
                 {
                     var selectedObject = currentSelectedObjects[i];
 
-                    Vector2 size = labelStyle.CalcSize(new GUIContent(selectedObject.name));
+                    var size = labelStyle.CalcSize(new GUIContent(selectedObject.name));
 
                     float padding = 10;
-                    Rect labelRect = new Rect(50, 10 + (i * (size.y + 20)), size.x + padding, size.y + padding);
+                    var labelRect = new Rect(50, 10 + i * (size.y + 20), size.x + padding, size.y + padding);
 
                     if (i == 0)
                     {
@@ -358,7 +388,7 @@ namespace OverfortGames.SmartEditorSelection
 
                 if (hoverRenderer != null)
                 {
-                    Vector2 hoverSelectedLabelSize = labelStyle.CalcSize(new GUIContent(hoverRenderer.name));
+                    var hoverSelectedLabelSize = labelStyle.CalcSize(new GUIContent(hoverRenderer.name));
 
                     float hoverSelectedLabelPadding = 10;
                     hoverSelectedLabelRect = new Rect(hoverSelectedLabelRect.xMax + 10, hoverSelectedLabelRect.yMin, hoverSelectedLabelSize.x + hoverSelectedLabelPadding, hoverSelectedLabelSize.y + hoverSelectedLabelPadding);
@@ -371,20 +401,25 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private void DisableTransformToolsGizmos()
         {
             if (Tools.current == Tool.None)
+            {
                 return;
+            }
 
             previousTool = Tools.current;
 
             Tools.current = Tool.None;
         }
 
+
         private void EnableTransformToolsGizmos()
         {
             Tools.current = previousTool;
         }
+
 
         private void DisableCamerasFarPlane()
         {
@@ -403,6 +438,7 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private void DisableTerrainSelection()
         {
             foreach (var terrainsPickablePair in terrainsPickableDictionary)
@@ -410,6 +446,7 @@ namespace OverfortGames.SmartEditorSelection
                 SceneVisibilityManager.instance.DisablePicking(terrainsPickablePair.Key, true);
             }
         }
+
 
         private void EnableTerrainSelection()
         {
@@ -420,16 +457,19 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private void OnHierarchyChanged()
         {
             UpdateFilter();
             UpdateCameraFarPlainDictionary();
         }
 
+
         private void SelectionChanged()
         {
             UpdateRenderOutlineObjects();
         }
+
 
         private void SyncCurrentSelectedObjectsWithSelectionObjects()
         {
@@ -438,23 +478,28 @@ namespace OverfortGames.SmartEditorSelection
             currentSelectedObjects = Selection.gameObjects.ToList();
         }
 
+
         private void UpdateRenderOutlineObjects()
         {
             renderOutlineObjects.Clear();
 
             foreach (var selectedObject in Selection.gameObjects)
             {
-                Renderer selectedObjectRenderer = selectedObject.GetComponent<Renderer>();
+                var selectedObjectRenderer = selectedObject.GetComponent<Renderer>();
 
                 if (selectedObjectRenderer != null)
+                {
                     renderOutlineObjects.Add(selectedObjectRenderer);
+                }
 
                 if (selectedObject.GetComponent<LODGroup>())
                 {
                     foreach (var renderer in selectedObject.GetComponentsInChildren<Renderer>())
                     {
                         if (renderOutlineObjects.Contains(renderer) == false)
+                        {
                             renderOutlineObjects.Add(renderer);
+                        }
                     }
                 }
                 else
@@ -463,11 +508,12 @@ namespace OverfortGames.SmartEditorSelection
                     {
                         if (selectedObject.transform.parent.GetComponent<LODGroup>() != null)
                         {
-
                             foreach (var renderer in selectedObject.transform.parent.GetComponentsInChildren<Renderer>())
                             {
                                 if (renderOutlineObjects.Contains(renderer) == false)
+                                {
                                     renderOutlineObjects.Add(renderer);
+                                }
                             }
                         }
                     }
@@ -475,10 +521,12 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private void UpdateCameraFarPlainDictionary()
         {
-            Dictionary<Camera, float> newCameraFarPlaneDictionary = new Dictionary<Camera, float>();
-            foreach (var camera in GameObject.FindObjectsOfType<Camera>())
+            var newCameraFarPlaneDictionary = new Dictionary<Camera, float>();
+
+            foreach (var camera in GameObject.FindObjectsByType<Camera>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             {
                 newCameraFarPlaneDictionary.Add(camera, camera.farClipPlane);
             }
@@ -501,15 +549,14 @@ namespace OverfortGames.SmartEditorSelection
             cameraFarPlaneDictionary.RemoveNullKeys();
         }
 
+
         private void UpdateFilter()
         {
-            filter = GameObject.FindObjectsOfType<Transform>().
-                Where(x => x.GetComponent<Renderer>() != null).
-                Select(x => x.gameObject).ToArray();
+            filter = GameObject.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(x => x.GetComponent<Renderer>() != null).Select(x => x.gameObject).ToArray();
 
             terrainsPickableDictionary.Clear();
 
-            foreach (var terrain in GameObject.FindObjectsOfType<Terrain>())
+            foreach (var terrain in GameObject.FindObjectsByType<Terrain>(sortMode: FindObjectsSortMode.None, findObjectsInactive: FindObjectsInactive.Exclude))
             {
                 var isPickingEnabled = !SceneVisibilityManager.instance.IsPickingDisabled(terrain.gameObject);
 
@@ -517,20 +564,25 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private UndoPropertyModification[] UndoPostProcessModifications(UndoPropertyModification[] modifications)
         {
             UpdateCameraFarPlainDictionary();
+
             return modifications;
         }
 
-        Texture2D MakeTex(int width, int height, Color col)
+
+        private Texture2D MakeTex(int width, int height, Color col)
         {
-            Color[] pix = new Color[width * height];
+            var pix = new Color[width * height];
 
-            for (int i = 0; i < pix.Length; i++)
+            for (var i = 0; i < pix.Length; i++)
+            {
                 pix[i] = col;
+            }
 
-            Texture2D result = new Texture2D(width, height);
+            var result = new Texture2D(width, height);
             result.SetPixels(pix);
             result.Apply();
 
@@ -538,13 +590,14 @@ namespace OverfortGames.SmartEditorSelection
         }
     }
 
+
     public class HandlesInternal
     {
         [Flags]
         public enum OutlineDrawMode
         {
             SelectionOutline = 1 << 0,
-            SelectionWire = 1 << 1,
+            SelectionWire = 1 << 1
         }
 
 
@@ -555,26 +608,32 @@ namespace OverfortGames.SmartEditorSelection
             DrawOutline(parentRenderers, null, parentNodeColor, childNodeColor, fillOpacity);
         }
 
+
         public static void DrawOutline(int[] parentRenderers, int[] childRenderers, Color parentNodeColor, Color childNodeColor, float fillOpacity = 0)
         {
             if (Event.current.type != EventType.Repaint)
+            {
                 return;
+            }
+
             CallInternalDrawOutline(parentNodeColor, childNodeColor, 0, parentRenderers, childRenderers, OutlineDrawMode.SelectionOutline, fillOpacity, fillOpacity);
             CallInternalFinishDrawingCamera(Camera.current, false);
         }
 
+
         private static void CallInternalDrawOutline(Color parentNodeColor, Color childNodeColor, int submeshOutlineMaterialId, int[] parentRenderers, int[] childRenderers, OutlineDrawMode outlineMode, float parentOutlineAlpha = 0, float childOutlineAlpha = 0)
         {
-            Type handlesType = typeof(Handles);
-            MethodInfo internalDrawOutlineMethod = handlesType.GetMethod("Internal_DrawOutline", BindingFlags.NonPublic | BindingFlags.Static);
+            var handlesType = typeof(Handles);
+            var internalDrawOutlineMethod = handlesType.GetMethod("Internal_DrawOutline", BindingFlags.NonPublic | BindingFlags.Static);
 
             if (internalDrawOutlineMethod != null)
             {
-                internalDrawOutlineMethod.Invoke(null, new object[] {
-                parentNodeColor, childNodeColor, submeshOutlineMaterialId,
-                parentRenderers, childRenderers, (int)outlineMode,
-                parentOutlineAlpha, childOutlineAlpha
-            });
+                internalDrawOutlineMethod.Invoke(null, new object[]
+                {
+                    parentNodeColor, childNodeColor, submeshOutlineMaterialId,
+                    parentRenderers, childRenderers, (int) outlineMode,
+                    parentOutlineAlpha, childOutlineAlpha
+                });
             }
             else
             {
@@ -582,18 +641,20 @@ namespace OverfortGames.SmartEditorSelection
             }
         }
 
+
         private static void CallInternalFinishDrawingCamera(Camera camera, bool someBoolValue)
         {
-            Type handlesType = typeof(Handles);
-            MethodInfo internalFinishDrawingCameraMethod = handlesType.GetMethod("Internal_FinishDrawingCamera",
+            var handlesType = typeof(Handles);
+
+            var internalFinishDrawingCameraMethod = handlesType.GetMethod("Internal_FinishDrawingCamera",
                 BindingFlags.NonPublic | BindingFlags.Static,
                 null,
-                new Type[] { typeof(Camera), typeof(bool) },
+                new[] {typeof(Camera), typeof(bool)},
                 null);
 
             if (internalFinishDrawingCameraMethod != null)
             {
-                internalFinishDrawingCameraMethod.Invoke(null, new object[] { camera, someBoolValue });
+                internalFinishDrawingCameraMethod.Invoke(null, new object[] {camera, someBoolValue});
             }
             else
             {
@@ -609,6 +670,7 @@ namespace OverfortGames.SmartEditorSelection
                 Debug.LogWarning("The Renderer array is null. Handles.DrawOutline will not be rendered.");
                 parentRendererIDs = new int[0];
                 childRendererIDs = new int[0];
+
                 return;
             }
 
@@ -616,39 +678,54 @@ namespace OverfortGames.SmartEditorSelection
             parentRendererIDs = new int[renderers.Length];
 
             foreach (var renderer in renderers)
+            {
                 parentRendererIDs[parentIndex++] = renderer.GetInstanceID();
+            }
 
             var tempChildRendererIDs = new HashSet<int>();
+
             foreach (var renderer in renderers)
             {
                 var children = renderer.GetComponentsInChildren<Renderer>();
-                for (int i = 1; i < children.Length; i++)
+
+                for (var i = 1; i < children.Length; i++)
                 {
                     var id = children[i].GetInstanceID();
+
                     if (!HasMatchingInstanceID(parentRendererIDs, id, parentIndex))
+                    {
                         tempChildRendererIDs.Add(id);
+                    }
                 }
             }
 
             childRendererIDs = tempChildRendererIDs.ToArray();
         }
 
+
         private static bool HasMatchingInstanceID(int[] ids, int id, int cutoff)
         {
-            for (int i = 0; i < ids.Length; i++)
+            for (var i = 0; i < ids.Length; i++)
             {
                 if (ids[i] == id)
+                {
                     return true;
+                }
+
                 if (i > cutoff)
+                {
                     return false;
+                }
             }
+
             return false;
         }
     }
 
+
     public static class DictionaryExtensions
     {
-        public static bool HasNullKeys<TKey, TValue>(this Dictionary<TKey, TValue> dictionary) where TKey : UnityEngine.Object
+        public static bool HasNullKeys<TKey, TValue>(this Dictionary<TKey, TValue> dictionary) where TKey : Object
         {
             foreach (var key in dictionary.Keys)
             {
@@ -662,7 +739,7 @@ namespace OverfortGames.SmartEditorSelection
         }
 
 
-        public static void RemoveNullKeys<TKey, TValue>(this Dictionary<TKey, TValue> dictionary) where TKey : UnityEngine.Object
+        public static void RemoveNullKeys<TKey, TValue>(this Dictionary<TKey, TValue> dictionary) where TKey : Object
         {
             if (!dictionary.HasNullKeys())
             {

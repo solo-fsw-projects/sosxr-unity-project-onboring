@@ -391,6 +391,13 @@
       },
       "hash": "611cba4a95fd9701e2c2fbbcd715a2897a79101e"
     },
+    "missing-references-hunter": {
+      "version": "https://github.com/mrstruijk/Unity-MissingReferences-Hunter.git#dev",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "0d609ce355da0bdeae89c29624cdc570b83d64d3"
+    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,
