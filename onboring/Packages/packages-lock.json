@@ -17,7 +17,7 @@
         "com.unity.xr.interaction.toolkit": "3.0.7",
         "com.unity.recorder": "5.1.2"
       },
-      "hash": "081b2b5c4455d19a9297ce267780815c409232b3"
+      "hash": "523d52d267610a2dbb047042a8a1187c0c9642b2"
     },
     "com.sosxr.enhancedlogger": {
       "version": "https://github.com/mrstruijk/EnhancedLogger.git#dev",
@@ -34,7 +34,7 @@
         "com.unity.inputsystem": "1.12.0",
         "com.unity.textmeshpro": "3.0.1"
       },
-      "hash": "7570bb86d948169ff27d0ed0a992dbeac9cc72e1"
+      "hash": "18a7e131d1ec344c03d7fa823876d1111e967ddb"
     },
     "com.unity.bindings.openimageio": {
       "version": "1.0.0",
